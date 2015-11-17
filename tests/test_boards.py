@@ -8,6 +8,7 @@
 # this distribution.
 #--
 
+import datetime
 import unittest
 from nagare import database
 from sqlalchemy import MetaData
@@ -268,13 +269,13 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(len(board.members), 1)
         self.assertEqual(len(board.managers), 1)
 
-        member.dispatch('toggle_role')
+        member.dispatch('toggle_role', '')
         member = find_board_member()
         board.update_members()
         self.assertEqual(len(board.members), 0)
         self.assertEqual(len(board.managers), 2)
 
-        member.dispatch('toggle_role')
+        member.dispatch('toggle_role', '')
         board.update_members()
         self.assertEqual(len(board.members), 1)
         self.assertEqual(len(board.managers), 1)
@@ -301,3 +302,93 @@ class BoardTest(unittest.TestCase):
         board.archive_board()
         self.assertIn(board.data, board_module.Board.get_archived_boards_for(user.data.username, user.data.source).all())
         self.assertNotIn(board.data, board_module.Board.get_user_boards_for(user.data.username, user.data.source).all())
+
+    def test_import_export_board(self):
+        '''Test board import and export'''
+        data = {
+            'title': u'this is a board',
+            'labels': [
+                {'title': u'Green',
+                 'color': u'#00ff00'},
+                {'title': u'Blue',
+                 'color': u'#0000ff'},
+            ],
+            'columns': [
+                {'title': u'Todo',
+                 'cards': [
+                     {'title': u'Get some milk',
+                      'description': u'Grab a bottle of milk at the grocery store',
+                      'comments': [u'Not goat milk this time!'],
+                      'labels': ['Green']
+                      },
+                     {'title': u'Prepare luggage',
+                      'due_date': '2015-12-20',
+                      'checklists': [
+                          {'title': u'Clothes',
+                           'items': [
+                               {'title': u'Jeans', 'done': False},
+                               {'title': u'Shirt', 'done': True},
+                               {'title': u'Tuxedo', 'done': False}
+                           ]
+                           }
+                      ]
+                      }
+                 ]
+                 },
+                {'title': u'Done',
+                 'cards': [
+                     {'title': u'Repair kitchen sink',
+                      'labels': ['Blue']}
+                 ]
+                }
+            ]
+        }
+
+        # Test import from template
+        user = helpers.create_user()
+        board = DataBoard.from_template(data, user.get_user_data())
+        self.assertEqual(len(board.columns), 2)
+        col = board.columns[0]
+        self.assertEqual(col.title, u'Todo')
+        self.assertEqual(len(col.cards), 2)
+        card = col.cards[0]
+        self.assertEqual(card.title, u'Get some milk')
+        self.assertEqual(card.description, u'Grab a bottle of milk at the grocery store')
+        self.assertEqual(len(card.comments), 1)
+        self.assertEqual(card.comments[0].comment, u'Not goat milk this time!')
+        self.assertEqual(len(card.labels), 1)
+        self.assertEqual(card.labels[0].title, u'Green')
+        self.assertEqual(card.labels[0].color, u'#00ff00')
+        card = col.cards[1]
+        self.assertEqual(card.due_date, datetime.date(2015, 12, 20))
+        self.assertEqual(len(card.checklists), 1)
+        ck = card.checklists[0]
+        self.assertEqual(len(ck.items), 3)
+        self.assertFalse(ck.items[0].done)
+        self.assertEqual(ck.items[0].title, u'Jeans')
+        self.assertTrue(ck.items[1].done)
+
+        # Test export to template
+        output = board.to_template()
+        self.assertEqual(output['title'], u'this is a board')
+        self.assertEqual(len(output['labels']), 2)
+        self.assertEqual(output['labels'][0]['title'], u'Green')
+        self.assertEqual(output['labels'][0]['color'], u'#00ff00')
+        column = output['columns'][0]
+        self.assertEqual(column['title'], u'Todo')
+        self.assertEqual(len(column['cards']), 2)
+        card = column['cards'][0]
+        self.assertEqual(card['title'], u'Get some milk')
+        self.assertEqual(card['description'], u'Grab a bottle of milk at the grocery store')
+        self.assertEqual(len(card['comments']), 1)
+        self.assertEqual(card['comments'][0], u'Not goat milk this time!')
+        self.assertEqual(len(card['labels']), 1)
+        self.assertEqual(card['labels'][0], u'Green')
+        card = column['cards'][1]
+        self.assertEqual(card['due_date'], '2015-12-20')
+        self.assertEqual(len(card['checklists']), 1)
+        ck = card['checklists'][0]
+        self.assertEqual(len(ck['items']), 3)
+        self.assertFalse(ck['items'][0]['done'])
+        self.assertEqual(ck['items'][0]['title'], u'Jeans')
+        self.assertTrue(ck['items'][1]['done'])

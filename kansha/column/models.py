@@ -74,3 +74,19 @@ class DataColumn(Entity):
     def get_cards_count(self):
         q = DataCard.query.filter(DataCard.column_id == self.id)
         return q.count()
+
+    @classmethod
+    def from_template(cls, data, user, labels):
+        column = cls(title=data.get('title'))
+        for i, card in enumerate(data.get('cards')):
+            card = DataCard.from_template(card, user, labels)
+            card.index = i
+            card.column = column
+        return column
+
+    def to_template(self):
+        ret = {'title': self.title,
+               'cards': []}
+        for card in self.cards:
+            ret['cards'].append(card.to_template())
+        return ret

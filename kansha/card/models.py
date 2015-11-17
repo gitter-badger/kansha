@@ -8,6 +8,9 @@
 # this distribution.
 #--
 
+from datetime import date, datetime
+import time
+
 from elixir import using_options
 from elixir import ManyToMany, ManyToOne, OneToMany, OneToOne
 from elixir import Field, Unicode, Integer, DateTime, Date, UnicodeText
@@ -16,6 +19,8 @@ from nagare.database import session
 import datetime
 
 from kansha.models import Entity
+from kansha.comment.models import DataComment
+from kansha.checklist.models import DataChecklist, DataChecklistItem
 
 
 class DataCard(Entity):
@@ -102,3 +107,61 @@ class DataCard(Entity):
         if member.get_user_data() in self.members:
             self.members.remove(member.get_user_data())
             session.flush()
+
+    @classmethod
+    def from_template(cls, data, user, labels):
+        card = cls(title=data.get('title', u''),
+                   description=data.get('description', u''),
+                   creation_date=datetime.datetime.utcnow(),
+                   author=user)
+
+        due_date = data.get('due_date')
+        if due_date is not None:
+            due_date = time.strptime(due_date, '%Y-%m-%d')
+            due_date = date(*due_date[:3])
+            card.due_date = due_date
+
+        for comment in data.get('comments', ()):
+            DataComment(comment=comment,
+                        card=card,
+                        author=user)
+
+        for checklist in data.get('checklists', ()):
+            items = checklist.get('items', ())
+            checklist = DataChecklist(title=checklist.get('title', u''),
+                                      card=card)
+            for item in items:
+                DataChecklistItem(title=item.get('title', u''),
+                                  done=item.get('done', False),
+                                  checklist=checklist)
+
+        for label in data.get('labels', ()):
+            label = labels.get(label)
+            if label is not None:
+                card.labels.append(label)
+        return card
+
+    def to_template(self):
+        ret = {'title': self.title,
+               'description': self.description,
+               'comments': [],
+               'labels': [],
+               'checklists': [],
+               'due_date': None}
+        if self.due_date:
+            ret['due_date'] = self.due_date.strftime('%Y-%m-%d')
+        for comment in self.comments:
+            ret['comments'].append(comment.comment)
+
+        for checklist in self.checklists:
+            ck = {'title': checklist.title,
+                  'items': []}
+            for item in checklist.items:
+                ck['items'].append({'title': item.title,
+                                    'done': item.done})
+            ret['checklists'].append(ck)
+
+        for label in self.labels:
+            ret['labels'].append(label.title)
+
+        return ret

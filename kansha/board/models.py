@@ -8,6 +8,7 @@
 # this distribution.
 #--
 
+import json
 import uuid
 import urllib
 
@@ -16,6 +17,8 @@ from elixir import ManyToMany, ManyToOne, OneToMany
 from elixir import Field, Unicode, Integer, Boolean, UnicodeText
 
 from kansha.models import Entity
+from kansha.column.models import DataColumn
+from kansha.label.models import DataLabel
 from kansha.user.models import DataUser, DataBoardMember, DataBoardManager
 from kansha.notifications import DataHistory
 from nagare.database import session
@@ -224,3 +227,37 @@ class DataBoard(Entity):
         q = q.filter(cls.archived == True)
         q = q.order_by(DataBoard.title)
         return q
+
+    @classmethod
+    def from_template(cls, data, user):
+        board = cls(title=data.get('title', u''))
+        labels = {}
+        for i, label in enumerate(data.get('labels', ())):
+            title = label.get('title', u'')
+            label = DataLabel(title=title,
+                              color=label.get('color', u''),
+                              board=board)
+            label.index = i
+            labels[title] = label
+
+        for i, column in enumerate(data.get('columns', ())):
+            column = DataColumn.from_template(column, user, labels)
+            column.order = i
+            column.board = board
+
+        board.members.append(user)
+        board.managers.append(user)
+        return board
+
+    def to_template(self):
+        ret = {'title': self.title,
+               'labels': [],
+               'columns': []}
+        for label in self.labels:
+            label = {'title': label.title,
+                     'color': label.color}
+            ret['labels'].append(label)
+
+        for column in self.columns:
+            ret['columns'].append(column.to_template())
+        return ret
