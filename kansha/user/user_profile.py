@@ -9,10 +9,15 @@
 #--
 
 from collections import namedtuple, OrderedDict
+from glob import glob
 import imghdr
+import json
+import operator
+import os
 import peak.rules
+import pkg_resources
 
-from nagare import ajax
+from nagare import ajax, log, var
 from nagare import presentation, security, editor, component
 from nagare.i18n import _, _L
 
@@ -32,7 +37,7 @@ MenuEntry = namedtuple('MenuEntry', 'label content')
 
 class UserProfile(object):
 
-    def __init__(self, app_title, app_banner, custom_css, user, search_engine, services_service):
+    def __init__(self, app_title, app_banner, custom_css, user, search_engine, templates_config, services_service):
         """
         In:
          - ``user`` -- user (DataUser instance)
@@ -47,6 +52,7 @@ class UserProfile(object):
                 app_banner,
                 custom_css,
                 user,
+                templates_config
             )
         )
         self.menu['my-cards'] = MenuEntry(
@@ -436,7 +442,7 @@ def get_userform(app_title, app_banner, custom_css, source):
 
 class UserBoards(object):
 
-    def __init__(self, app_title, app_banner, custom_css, user, mail_sender_service, assets_manager_service, services_service):
+    def __init__(self, app_title, app_banner, custom_css, user, templates_config, mail_sender_service, assets_manager_service, services_service):
         """ UserBoards
 
         List of user's boards, and form to add new one board
@@ -459,12 +465,41 @@ class UserBoards(object):
         self.user_id = user.username
         self.user_source = user.source
         self._services = services_service
-        self.new_board = component.Component(board.NewBoard())
+        self.templates_config = templates_config
+        self.templates = OrderedDict()
         self.reload_boards()
+
+        package = pkg_resources.Requirement.parse('kansha')
+        path = pkg_resources.resource_filename(package, 'data/templates')
+        self.read_templates(path, user.username)
+        if templates_config['activated'] and os.path.isdir(templates_config['basedir']):
+            path = templates_config['basedir']
+            self.read_templates(path, user.username)
+
+    def create_board(self, key, comp):
+        data = self.templates[key]
+        b = board.DataBoard.from_template(data, security.get_user().get_user_data())
+        self.reload_boards()
+        comp.answer(b.id)
+
+
+    def read_templates(self, template_path, username):
+        templates = []
+        for tplf_name in glob(os.path.join(template_path, '*.btpl')):
+            with open(tplf_name, 'r') as f:
+                try:
+                    data = json.loads(f.read())
+                except ValueError:
+                    # Invalid JSON, pass
+                    log.info('Invalid JSON data in %s', tplf_name)
+            if os.path.basename(tplf_name).split('.')[0] == username or data.get('shared', False):
+                templates.append((data['title'], data))
+        templates.sort(key=operator.itemgetter(0))
+        self.templates.update(templates)
 
     def _get_board(self, b, model=0):
         b = self._services(board.Board, b.id, self.app_title, self.app_banner, self.custom_css,
-                           None,
+                           None, self.templates_config,
                            on_board_delete=self.reload_boards,
                            on_board_archive=self.reload_boards,
                            on_board_restore=self.reload_boards,
@@ -492,6 +527,7 @@ class UserBoards(object):
 
 @presentation.render_for(UserBoards)
 def render_userboards(self, h, comp, *args):
+    template = var.Var(u'')
     h.head << h.head.title(self.app_title)
 
     h << h.script('YAHOO.kansha.app.hideOverlay();'
@@ -512,7 +548,19 @@ def render_userboards(self, h, comp, *args):
             h << [b.on_answer(comp.answer).render(h, "item") for b in self.guest_boards.itervalues()]
 
     with h.div:
-        h << self.new_board.on_answer(lambda ret: self.reload_boards())
+        with h.form:
+            h << h.SyncRenderer().button(_(u'Create'), type='submit', class_='btn').action(lambda: self.create_board(template(), comp))
+            h << _(u' a new ')
+
+            if len(self.templates) > 1:
+                with h.select.action(template):
+                    h << [h.option(name) for name in sorted(self.templates)]
+            else:
+                tpl = self.templates.keys()[0]
+                template(tpl)
+                h << tpl
+
+            h << _(u' board')
 
     if len(self.archived_boards):
         with h.div:

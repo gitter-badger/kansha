@@ -123,6 +123,7 @@ class DataCard(Entity):
 
         for comment in data.get('comments', ()):
             DataComment(comment=comment,
+                        creation_date=datetime.datetime.utcnow(),
                         card=card,
                         author=user)
 

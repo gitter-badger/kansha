@@ -79,9 +79,8 @@ class UserManager(object):
         return DataUser.get_confirmed_users()
 
     def create_user(self, username, password, fullname, email,
-                    source=u'application', picture=None, create_board=True):
+                    source=u'application', picture=None):
         from ..authentication.database import forms
-        from ..board.boardsmanager import BoardsManager
         user = DataUser(username, password, fullname, email,
                         source, picture, language=i18n.get_locale().language)
         token_gen = forms.TokenGenerator(email, u'invite board')
@@ -89,11 +88,10 @@ class UserManager(object):
             if token_gen.check_token(token.token) and token.board:
                 user.add_board(token.board)
             token_gen.reset_token(token.token)
-        if create_board:
-            BoardsManager().create_board(u"Welcome Board", user, True)
         return user
 
     def populate(self):
+        # TODO load from templates
         user1 = self.create_user(
             u'user1', u'password', u'user 1', u'user1@net-ng.com')
         user1.confirm_email()

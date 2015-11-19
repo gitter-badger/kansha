@@ -1,0 +1,9 @@
+{
+  "title": "Todo list",
+  "shared": true,
+  "columns": [
+    {"title": "Todo"},
+    {"title": "Doing"},
+    {"title": "Done"}
+  ]
+}

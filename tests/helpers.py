@@ -19,8 +19,7 @@ import random
 import string
 from nagare.database import session
 from nagare import local, security
-from kansha.board import boardsmanager
-from kansha.board import comp as board
+from kansha.board import comp as board, models as board_models
 from kansha.user import usermanager
 from kansha.security import SecurityManager
 from kansha.services.dummyassetsmanager.dummyassetsmanager import DummyAssetsManager
@@ -95,8 +94,7 @@ def get_or_create_data_user(suffixe=''):
         user_test = usermanager.UserManager().create_user(
             u'usertest_%s' % suffixe,
             u'password', u'User Test %s' % suffixe,
-            u'user_test%s@net-ng.com' % suffixe,
-            create_board=False)
+            u'user_test%s@net-ng.com' % suffixe)
         session.add(user_test)
     return user_test
 
@@ -120,9 +118,49 @@ def create_board():
     """Create boards with default columns and default cards
     """
     user_test = get_or_create_data_user()
-    data_board = boardsmanager.BoardsManager().create_board(word(), user_test,
-                                                            True)
+    data_board = board_models.DataBoard.from_template(get_board_data(), user_test)
     session.add(data_board)
     session.flush()
     _services = create_services()
-    return _services(board.Board, data_board.id, 'boards', '', '', None)
+    return _services(board.Board, data_board.id, 'boards', '', '', None, {'activated': False, 'basedir': ''})
+
+def get_board_data():
+    return {
+        'title': u'this is a board',
+        'labels': [
+            {'title': u'Green',
+             'color': u'#00ff00'},
+            {'title': u'Blue',
+             'color': u'#0000ff'},
+        ],
+        'columns': [
+            {'title': u'Todo',
+             'cards': [
+                 {'title': u'Get some milk',
+                  'description': u'Grab a bottle of milk at the grocery store',
+                  'comments': [u'Not goat milk this time!'],
+                  'labels': ['Green']
+                  },
+                 {'title': u'Prepare luggage',
+                  'due_date': '2015-12-20',
+                  'checklists': [
+                      {'title': u'Clothes',
+                       'items': [
+                           {'title': u'Jeans', 'done': False},
+                           {'title': u'Shirt', 'done': True},
+                           {'title': u'Tuxedo', 'done': False}
+                       ]
+                       }
+                  ]
+                  }
+             ]
+            },
+            {'title': u'Done',
+             'cards': [
+                 {'title': u'Repair kitchen sink',
+                  'labels': ['Blue']}
+             ]
+            }
+        ]
+
+    }
