@@ -9,11 +9,11 @@
 # --
 
 import json
+import os
 import re
 import unicodedata
 from cStringIO import StringIO
 
-from nagare import ajax
 from nagare import security, component, log
 from nagare.database import session
 from nagare.i18n import _, _L, format_date
@@ -62,10 +62,10 @@ class Board(object):
     max_shown_members = 4
     background_max_size = 3 * 1024  # in Bytes
 
-    def __init__(self, id_, app_title, app_banner, theme, search_engine,
+    def __init__(self, id_, app_title, app_banner, theme, search_engine, templates_config,
                  assets_manager_service, mail_sender_service, services_service,
                  on_board_delete=None, on_board_archive=None,
-                 on_board_restore=None, on_board_leave=None, on_update_members=None,load_data=True):
+                 on_board_restore=None, on_board_leave=None, on_update_members=None, load_data=True):
         """Initialization
 
         In:
@@ -86,7 +86,11 @@ class Board(object):
         self.on_update_members = on_update_members
         self.assets_manager = assets_manager_service
         self.search_engine = search_engine
+        self.templates_config = templates_config
         self._services = services_service
+
+        self.can_save_templates = templates_config['activated']
+        self.can_save_templates &= os.path.isdir(templates_config['basedir'])
 
         self.version = self.data.version
         self.popin = component.Component(popin.Empty())
@@ -127,6 +131,7 @@ class Board(object):
                       'edit_desc': component.Component(Icon("icon-pencil", _("Edit board description"))),
                       'preferences': component.Component(Icon("icon-cog", _("Preferences"))),
                       'export': component.Component(Icon("icon-download3", _("Export board"))),
+                      'save_template': component.Component(Icon("icon-floppy-disk", _("Save as template"))),
                       'archive': component.Component(Icon("icon-bin", _("Archive board"))),
                       'leave': component.Component(Icon("icon-exit", _("Leave this board"))),
                       'history': component.Component(Icon("icon-history", _("Action log"))),
@@ -153,6 +158,13 @@ class Board(object):
                             lambda r: self.description.render(r),
                             title=_("Edit board description"), dynamic=True))
 
+        self.save_template_comp = component.Component(self, 'save_template')
+        self.save_template_overlay = component.Component(
+            overlay.Overlay(lambda r: self.icons['save_template'],
+                            lambda r: self.save_template_comp.render(r),
+                            title=_(u"Save board as template"), dynamic=True)
+        )
+
         self.must_reload_search = False
 
     def switch_view(self):
@@ -173,7 +185,7 @@ class Board(object):
         else:
             # Create the unique archive column
             last_idx = max(c.index for c in self.data.columns)
-            col_id = self.create_column(index=last_idx + 1, title=_('Archive'), archive=True)
+            col_id = self.create_column(index=last_idx + 1, title=_(u'Archive'), archive=True)
             self.archive_column = self._services(column.Column, col_id, self, self.search_engine)
 
         if self.archive and security.has_permissions('manage', self):
@@ -886,6 +898,15 @@ class Board(object):
         self.must_reload_search = False
         return self.search(self.last_search)
 
+    def save_as_template(self, shared):
+        data = self.data.to_template(shared)
+        fname = unicodedata.normalize('NFKD', self.data.title).encode('ascii', 'ignore')
+        fname = re.sub('\W+', '_', fname.lower())
+        fname = '%s.%s.btpl' % (security.get_user().username, fname)
+        with open(os.path.join(self.templates_config['basedir'], fname), 'w') as f:
+            f.write(json.dumps(data))
+        return 'YAHOO.kansha.app.hideOverlay();'
+
 ################
 
 
@@ -900,25 +921,6 @@ class Icon(object):
         """
         self.icon = icon
         self.title = title
-
-################
-
-
-class NewBoard(object):
-
-    """Board creator component"""
-
-    @security.permissions('create_board')
-    def create_board(self, comp, title, user):
-        """Create a new board.
-
-        In:
-          - ``title`` -- the new board title
-        """
-        if title and title.strip():
-            b = BoardsManager().create_board(title, user)
-            comp.answer(b.id)
-        comp.answer()
 
 ################
 

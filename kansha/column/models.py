@@ -77,8 +77,8 @@ class DataColumn(Entity):
 
     @classmethod
     def from_template(cls, data, user, labels):
-        column = cls(title=data.get('title'))
-        for i, card in enumerate(data.get('cards')):
+        column = cls(title=data.get('title', u''))
+        for i, card in enumerate(data.get('cards', ())):
             card = DataCard.from_template(card, user, labels)
             card.index = i
             card.column = column

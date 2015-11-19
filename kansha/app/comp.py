@@ -44,9 +44,8 @@ def run():
 
 class Kansha(object):
     """The Kansha root component"""
-
     def __init__(self, app_title, app_banner, theme,
-                 search, services_service):
+                 search, templates_config, services_service):
         """Initialization
         """
         self._services = services_service
@@ -61,6 +60,7 @@ class Kansha(object):
         self.boards_manager = BoardsManager()
         self.search_engine = search
         self.default_board_id = None
+        self.templates_config = templates_config
 
     def initialization(self):
         """ Initialize Kansha application
@@ -96,6 +96,7 @@ class Kansha(object):
                     self.app_banner,
                     self.theme,
                     self.search_engine,
+                    self.templates_config,
                     on_board_archive=self.select_last_board,
                     on_board_leave=self.select_last_board
                 )
@@ -133,7 +134,8 @@ class Kansha(object):
                     self.app_banner,
                     self.theme,
                     user.data,
-                    self.search_engine
+                    self.search_engine,
+                    self.templates_config
                 ),
                 'edit'
             )
@@ -148,13 +150,13 @@ class MainTask(component.Task):
         self.app_banner = app_banner
         self.theme = theme
         self.auth_cfg = cfg['authentication']
-        self.tpl_cfg = cfg['tpl_cfg']
         self.app = services_service(
             Kansha,
             self.app_title,
             self.app_banner,
             self.theme,
-            search
+            search,
+            cfg['templates']
         )
         self.main_app = main_app
         self.search_engine = search
@@ -174,13 +176,6 @@ class MainTask(component.Task):
                 )
             )
             user = security.get_user()
-            if user.last_login is None:
-                # first connection.
-                # Load template boards if any,
-                self.app.boards_manager.create_boards_from_templates(user.data, self.cfg['tpl_cfg'])
-                #  then index cards
-                self.app.boards_manager.index_user_cards(user.data,
-                                                         self.search_engine)
             user.update_last_login()
 
         comp.call(self.app.initialization())
@@ -222,11 +217,15 @@ class WSGIApp(wsgi.WSGIApp):
                         'theme': 'string(default="kansha_flat")',
                         'favicon': 'string(default="img/favicon.ico")',
                         'disclaimer': 'string(default="")',
-                        'activity_monitor': "string(default='')",
-                        'templates': "string(default='')"},
+                        'activity_monitor': "string(default='')"
+        },
         'locale': {
             'major': 'string(default="en")',
             'minor': 'string(default="US")'
+        },
+        'templates': {
+            'activated': 'boolean(default=False)',
+            'basedir': 'string(default="")'
         }
     }
 
@@ -253,7 +252,6 @@ class WSGIApp(wsgi.WSGIApp):
         self.debug = conf['application']['debug']
         self.default_locale = i18n.Locale(
             conf['locale']['major'], conf['locale']['minor'])
-        tpl_cfg = conf['application']['templates']
         pub_cfg = {
             'disclaimer': conf['application']['disclaimer'].decode('utf-8'),
             'banner': conf['application']['banner'].decode('utf-8'),
@@ -261,7 +259,7 @@ class WSGIApp(wsgi.WSGIApp):
         }
         self.app_cfg = {
             'authentication': conf['authentication'],
-            'tpl_cfg': tpl_cfg,
+            'templates': conf['templates'],
             'pub_cfg': pub_cfg
         }
         self.activity_monitor = conf['application']['activity_monitor']

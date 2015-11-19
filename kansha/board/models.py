@@ -242,15 +242,17 @@ class DataBoard(Entity):
 
         for i, column in enumerate(data.get('columns', ())):
             column = DataColumn.from_template(column, user, labels)
-            column.order = i
+            column.index = i
             column.board = board
 
         board.members.append(user)
         board.managers.append(user)
+        session.flush()
         return board
 
-    def to_template(self):
+    def to_template(self, shared=False):
         ret = {'title': self.title,
+               'shared': shared,
                'labels': [],
                'columns': []}
         for label in self.labels:

@@ -37,7 +37,7 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(DataBoard.query.count(), 0)
         user = helpers.create_user()
         helpers.set_context(user)
-        self.boards_manager.create_board(helpers.word(), user)
+        DataBoard.from_template(helpers.get_board_data(), user.get_user_data())
         self.assertEqual(DataBoard.query.count(), 1)
 
     def test_add_column_ok(self):
@@ -45,15 +45,15 @@ class BoardTest(unittest.TestCase):
         helpers.set_dummy_context()
         board = helpers.create_board()
         self.assertIsNotNone(board.archive_column)
-        self.assertEqual(board.count_columns(), 3)
+        self.assertEqual(board.count_columns(), 2)
         board.create_column(0, helpers.word())
-        self.assertEqual(board.count_columns(), 4)
+        self.assertEqual(board.count_columns(), 3)
 
     def test_add_column_ko(self):
         """Add a column with empty title to a board"""
         helpers.set_dummy_context()
         board = helpers.create_board()
-        self.assertEqual(board.count_columns(), 3)
+        self.assertEqual(board.count_columns(), 2)
         self.assertFalse(board.create_column(0, ''))
 
     def test_delete_column(self):
@@ -63,62 +63,42 @@ class BoardTest(unittest.TestCase):
         helpers.set_context(user)
         board = helpers.create_board()
         self.assertIsNotNone(board.archive_column)
-        self.assertEqual(board.count_columns(), 3)
+        self.assertEqual(board.count_columns(), 2)
         column_id = board.columns[0]().db_id
         board.delete_column(column_id)
-        self.assertEqual(board.count_columns(), 2)
+        self.assertEqual(board.count_columns(), 1)
 
     def test_move_cards(self):
         """Test move cards"""
         helpers.set_dummy_context()
         board = helpers.create_board()
-        self.assertEqual(len(board.columns), 3)
+        self.assertEqual(len(board.columns), 2)
         move_cards_value = """[
-            ["list_2", ["card_10", "card_1", "card_3", "card_5"]],
-            ["list_1", ["card_7", "card_2", "card_8", "card_11"]],
-            ["list_3", ["card_6", "card_4", "card_9"]]]"""
+            ["list_2", ["card_1", "card_3"]],
+            ["list_1", ["card_2"]]]"""
         # This has the side effect of implicitly hiding the archive
         # because it is not present in above values
         board.move_cards(move_cards_value)
         # Test columns
-        self.assertEqual(len(board.data.columns), 4)
-        self.assertEqual(len(board.columns), 3)
+        self.assertEqual(len(board.data.columns), 3)
+        self.assertEqual(len(board.columns), 2)
         self.assertEqual(board.data.columns[0].id, 2)
         self.assertEqual(board.columns[0]().id, "list_2")
         self.assertEqual(board.data.columns[1].id, 1)
         self.assertEqual(board.columns[1]().id, "list_1")
-        self.assertEqual(board.data.columns[2].id, 3)
-        self.assertEqual(board.columns[2]().id, "list_3")
 
         # Test cards
-        self.assertEqual(len(board.data.columns[0].cards), 4)
-        self.assertEqual(len(board.columns[0]().cards), 4)
-        self.assertEqual(board.data.columns[0].cards[0].id, 10)
-        self.assertEqual(board.columns[0]().cards[0]().id, 'card_10')
-        self.assertEqual(board.data.columns[0].cards[1].id, 1)
-        self.assertEqual(board.columns[0]().cards[1]().id, 'card_1')
-        self.assertEqual(board.data.columns[0].cards[2].id, 3)
-        self.assertEqual(board.columns[0]().cards[2]().id, 'card_3')
-        self.assertEqual(board.data.columns[0].cards[3].id, 5)
-        self.assertEqual(board.columns[0]().cards[3]().id, 'card_5')
-        self.assertEqual(len(board.data.columns[1].cards), 4)
-        self.assertEqual(len(board.columns[1]().cards), 4)
-        self.assertEqual(board.data.columns[1].cards[0].id, 7)
-        self.assertEqual(board.columns[1]().cards[0]().id, 'card_7')
-        self.assertEqual(board.data.columns[1].cards[1].id, 2)
-        self.assertEqual(board.columns[1]().cards[1]().id, 'card_2')
-        self.assertEqual(board.data.columns[1].cards[2].id, 8)
-        self.assertEqual(board.columns[1]().cards[2]().id, 'card_8')
-        self.assertEqual(board.data.columns[1].cards[3].id, 11)
-        self.assertEqual(board.columns[1]().cards[3]().id, 'card_11')
-        self.assertEqual(len(board.data.columns[2].cards), 3)
-        self.assertEqual(len(board.columns[2]().cards), 3)
-        self.assertEqual(board.data.columns[2].cards[0].id, 6)
-        self.assertEqual(board.columns[2]().cards[0]().id, 'card_6')
-        self.assertEqual(board.data.columns[2].cards[1].id, 4)
-        self.assertEqual(board.columns[2]().cards[1]().id, 'card_4')
-        self.assertEqual(board.data.columns[2].cards[2].id, 9)
-        self.assertEqual(board.columns[2]().cards[2]().id, 'card_9')
+        self.assertEqual(len(board.data.columns[0].cards), 2)
+        self.assertEqual(len(board.columns[0]().cards), 2)
+        self.assertEqual(len(board.data.columns[1].cards), 1)
+        self.assertEqual(len(board.columns[1]().cards), 1)
+        self.assertEqual(board.data.columns[0].cards[0].id, 1)
+        self.assertEqual(board.columns[0]().cards[0]().id, 'card_1')
+        self.assertEqual(board.data.columns[0].cards[1].id, 3)
+        self.assertEqual(board.columns[0]().cards[1]().id, 'card_3')
+        self.assertEqual(board.data.columns[1].cards[0].id, 2)
+        self.assertEqual(board.columns[1]().cards[0]().id, 'card_2')
+
 
     def test_set_visibility_1(self):
         """Test set visibility method 1
@@ -305,44 +285,7 @@ class BoardTest(unittest.TestCase):
 
     def test_import_export_board(self):
         '''Test board import and export'''
-        data = {
-            'title': u'this is a board',
-            'labels': [
-                {'title': u'Green',
-                 'color': u'#00ff00'},
-                {'title': u'Blue',
-                 'color': u'#0000ff'},
-            ],
-            'columns': [
-                {'title': u'Todo',
-                 'cards': [
-                     {'title': u'Get some milk',
-                      'description': u'Grab a bottle of milk at the grocery store',
-                      'comments': [u'Not goat milk this time!'],
-                      'labels': ['Green']
-                      },
-                     {'title': u'Prepare luggage',
-                      'due_date': '2015-12-20',
-                      'checklists': [
-                          {'title': u'Clothes',
-                           'items': [
-                               {'title': u'Jeans', 'done': False},
-                               {'title': u'Shirt', 'done': True},
-                               {'title': u'Tuxedo', 'done': False}
-                           ]
-                           }
-                      ]
-                      }
-                 ]
-                 },
-                {'title': u'Done',
-                 'cards': [
-                     {'title': u'Repair kitchen sink',
-                      'labels': ['Blue']}
-                 ]
-                }
-            ]
-        }
+        data = helpers.get_board_data()
 
         # Test import from template
         user = helpers.create_user()
@@ -369,8 +312,9 @@ class BoardTest(unittest.TestCase):
         self.assertTrue(ck.items[1].done)
 
         # Test export to template
-        output = board.to_template()
+        output = board.to_template(True)
         self.assertEqual(output['title'], u'this is a board')
+        self.assertTrue(output['shared'], True)
         self.assertEqual(len(output['labels']), 2)
         self.assertEqual(output['labels'][0]['title'], u'Green')
         self.assertEqual(output['labels'][0]['color'], u'#00ff00')
