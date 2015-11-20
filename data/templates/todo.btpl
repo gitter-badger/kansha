@@ -1,6 +1,14 @@
 {
   "title": "Todo list",
   "shared": true,
+  "labels": [
+    {"title": "Green", "color": "#22C328"},
+    {"title": "Red", "color": "#CC3333"},
+    {"title": "Blue", "color": "#3366CC"},
+    {"title": "Yellow", "color": "#D7D742"},
+    {"title": "Orange", "color": "#DD9A3C"},
+    {"title": "Purple", "color": "#8C28BD"}
+  ],
   "columns": [
     {"title": "Todo"},
     {"title": "Doing"},
