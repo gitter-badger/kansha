@@ -91,7 +91,6 @@ class UserManager(object):
         return user
 
     def populate(self):
-        # TODO load from templates
         user1 = self.create_user(
             u'user1', u'password', u'user 1', u'user1@net-ng.com')
         user1.confirm_email()

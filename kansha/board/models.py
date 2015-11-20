@@ -261,5 +261,6 @@ class DataBoard(Entity):
             ret['labels'].append(label)
 
         for column in self.columns:
-            ret['columns'].append(column.to_template())
+            if not column.archive:
+                ret['columns'].append(column.to_template())
         return ret
