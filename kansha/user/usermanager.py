@@ -11,7 +11,7 @@ import random
 from datetime import datetime, timedelta
 
 from nagare.namespaces import xhtml
-from nagare import component, i18n
+from nagare import component, database, i18n
 
 from kansha.toolbox import autocomplete
 from .models import DataUser
@@ -91,17 +91,48 @@ class UserManager(object):
         return user
 
     def populate(self):
+        from kansha.board.models import DataBoard
+
+        data = {
+            "title": u"Todo list",
+            "labels": [
+                {"title": u"Green", "color": u"#22C328"},
+                {"title": u"Red", "color": u"#CC3333"},
+                {"title": u"Blue", "color": u"#3366CC"},
+                {"title": u"Yellow", "color": u"#D7D742"},
+                {"title": u"Orange", "color": u"#DD9A3C"},
+                {"title": u"Purple", "color": u"#8C28BD"}
+            ],
+            "columns": [
+                {"title": u"Todo",
+                 "cards": [{"title": u"Get some milk",
+                            "labels": ["Green"]},
+                           {"title": u"Pay bills",
+                            "labels": ["Green", "Blue"]},
+                           {"title": u"Call grandma",
+                            "labels": ["Yellow"]},]},
+                {"title": u"Doing",
+                 "cards": [{"title": u"Bathroom paint",
+                            "labels": ["Green"]}]},
+                {"title": u"Done",
+                 "cards": [{"title": u"Repair the car"},]}
+            ]
+        }
+
         user1 = self.create_user(
             u'user1', u'password', u'user 1', u'user1@net-ng.com')
         user1.confirm_email()
+        DataBoard.from_template(data, user1)
 
         user2 = self.create_user(
             u'user2', u'password', u'user 2', u'user2@net-ng.com')
         user2.confirm_email()
+        DataBoard.from_template(data, user2)
 
         user3 = self.create_user(
             u'user3', u'password', u'user 3', u'user3@net-ng.com')
         user3.confirm_email()
+        DataBoard.from_template(data, user3)
 
         user1.boards[0].title = u"Welcome Board User1"
         user2.boards[0].title = u"Welcome Board User2"
@@ -110,10 +141,9 @@ class UserManager(object):
         # Share boards and cards for tests
         user1.boards[0].members.extend([user2, user3])
         user2.boards[0].members.append(user1)
-        user1.boards[0].columns[0].cards[3].members = [user1, user2]
-        user1.boards[0].columns[1].cards[2].members = [user1, user2, user3]
-        user1.boards[0].columns[1].cards[1].members = [user3]
-        user2.boards[0].columns[0].cards[1].members = [user1, user2]
+        user1.boards[0].columns[0].cards[2].members = [user1, user2]
+        user1.boards[0].columns[0].cards[0].members = [user3]
+        user2.boards[0].columns[1].cards[0].members = [user1, user2]
 
         # Add comment from other user
         for u1, u2 in ((user1, user2),
