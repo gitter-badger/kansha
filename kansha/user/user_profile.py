@@ -568,7 +568,7 @@ def render_userboards(self, h, comp, *args):
         with h.ul(class_="board-labels"):
             h << [b.on_answer(comp.answer).render(h, "item") for b in self.guest_boards.itervalues()]
 
-    with h.div:
+    with h.div(class_='new-board'):
         with h.form:
             h << h.SyncRenderer().button(_(u'Create'), type='submit', class_='btn').action(lambda: self.create_board(template(), comp))
             h << _(u' a new ')
