@@ -497,6 +497,27 @@ class UserBoards(object):
         templates.sort(key=operator.itemgetter(0))
         self.templates.update(templates)
 
+    def create_board(self, key, comp):
+        data = self.templates[key]
+        b = board.DataBoard.from_template(data, security.get_user().get_user_data())
+        self.reload_boards()
+        comp.answer(b.id)
+
+
+    def read_templates(self, template_path, username):
+        templates = []
+        for tplf_name in glob(os.path.join(template_path, '*.btpl')):
+            with open(tplf_name, 'r') as f:
+                try:
+                    data = json.loads(f.read())
+                except ValueError:
+                    # Invalid JSON, pass
+                    log.info('Invalid JSON data in %s', tplf_name)
+            if os.path.basename(tplf_name).split('.')[0] == username or data.get('shared', False):
+                templates.append((data['title'], data))
+        templates.sort(key=operator.itemgetter(0))
+        self.templates.update(templates)
+
     def _get_board(self, b, model=0):
         b = self._services(board.Board, b.id, self.app_title, self.app_banner, self.theme,
                            None, self.templates_config,
