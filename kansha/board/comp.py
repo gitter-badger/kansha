@@ -900,9 +900,13 @@ class Board(object):
 
     def save_as_template(self, shared):
         data = self.data.to_template(shared)
-        fname = '%s.%s.btpl' % (security.get_user().username, self.data.title)
+        username = security.get_user().username
+        username = unicodedata.normalize('NFKD', username).encode('ascii', 'ignore')
+        username = re.sub('\W+', '_', username.lower())
+        fname = self.data.title
         fname = unicodedata.normalize('NFKD', fname).encode('ascii', 'ignore')
         fname = re.sub('\W+', '_', fname.lower())
+        fname = '%s.%s.btpl' % (username, fname)
         with open(os.path.join(self.templates_config['basedir'], fname), 'w') as f:
             f.write(json.dumps(data))
         return 'YAHOO.kansha.app.hideOverlay();'

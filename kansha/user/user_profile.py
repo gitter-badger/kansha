@@ -16,6 +16,8 @@ import operator
 import os
 import peak.rules
 import pkg_resources
+import re
+import unicodedata
 
 from nagare import ajax, log, var
 from nagare import presentation, security, editor, component
@@ -485,27 +487,8 @@ class UserBoards(object):
 
     def read_templates(self, template_path, username):
         templates = []
-        for tplf_name in glob(os.path.join(template_path, '*.btpl')):
-            with open(tplf_name, 'r') as f:
-                try:
-                    data = json.loads(f.read())
-                except ValueError:
-                    # Invalid JSON, pass
-                    log.info('Invalid JSON data in %s', tplf_name)
-            if os.path.basename(tplf_name).split('.')[0] == username or data.get('shared', False):
-                templates.append((data['title'], data))
-        templates.sort(key=operator.itemgetter(0))
-        self.templates.update(templates)
-
-    def create_board(self, key, comp):
-        data = self.templates[key]
-        b = board.DataBoard.from_template(data, security.get_user().get_user_data())
-        self.reload_boards()
-        comp.answer(b.id)
-
-
-    def read_templates(self, template_path, username):
-        templates = []
+        username = unicodedata.normalize('NFKD', username).encode('ascii', 'ignore')
+        username = re.sub('\W+', '_', username.lower())
         for tplf_name in glob(os.path.join(template_path, '*.btpl')):
             with open(tplf_name, 'r') as f:
                 try:
@@ -590,14 +573,15 @@ def render_userboards(self, h, comp, *args):
             h << [b.render(h, "archived_item")
                   for b in self.archived_boards.itervalues()]
 
-        h << h.button(
-            _("Delete"),
-            class_="delete",
-            onclick='return confirm(%s)' % ajax.py2js(
-                _("These boards will be destroyed. Are you sure?")
-            ).decode('UTF-8'),
-            type='submit'
-        ).action(self.purge_archived_boards)
+        with h.form:
+            h << h.button(
+                _("Delete"),
+                class_="delete",
+                onclick='return confirm(%s)' % ajax.py2js(
+                    _("These boards will be destroyed. Are you sure?")
+                ).decode('UTF-8'),
+                type='submit'
+            ).action(self.purge_archived_boards)
 
     h << h.script('YAHOO.kansha.app.hideOverlay();'
                   'function reload_boards() { %s; }' % h.AsyncRenderer().a.action(ajax.Update(action=self.reload_boards, render=0)).get('onclick'))
