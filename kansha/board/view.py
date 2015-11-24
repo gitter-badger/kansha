@@ -357,7 +357,7 @@ def render_Board_save_template(self, h, comp, *args):
             with h.select.action(shared):
                 h << h.option(_(u'For me only'), value='me').selected(shared)
                 h << h.option(_(u'For all users'), value='shared').selected(shared)
-            with h.div:
+            with h.div(class_='buttons'):
                 action = remote.Action(lambda: self.save_as_template(shared() == 'shared'))
                 h << h.button(_(u'Save'), class_='btn btn-primary', type='submit').action(action)
                 h << ' '
