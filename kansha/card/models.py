@@ -8,23 +8,21 @@
 # this distribution.
 #--
 
-from datetime import date, datetime
 import time
+from datetime import date, datetime
 
 from elixir import using_options
 from elixir import ManyToMany, ManyToOne, OneToMany, OneToOne
 from elixir import Field, Unicode, Integer, DateTime, Date, UnicodeText
-from sqlalchemy.orm import subqueryload
 from nagare.database import session
-import datetime
+from sqlalchemy.orm import subqueryload
 
 from kansha.models import Entity
-from kansha.comment.models import DataComment
 from kansha.checklist.models import DataChecklist, DataChecklistItem
+from kansha.comment.models import DataComment
 
 
 class DataCard(Entity):
-
     """Card mapper
     """
     using_options(tablename='card')
@@ -62,7 +60,7 @@ class DataCard(Entity):
             - created DataCard instance
         """
         new_card = cls(title=title, author=user,
-                       creation_date=datetime.datetime.utcnow())
+                       creation_date=datetime.utcnow())
         column.cards.append(new_card)
         return new_card
 
@@ -112,7 +110,7 @@ class DataCard(Entity):
     def from_template(cls, data, user, labels):
         card = cls(title=data.get('title', u''),
                    description=data.get('description', u''),
-                   creation_date=datetime.datetime.utcnow(),
+                   creation_date=datetime.utcnow(),
                    author=user)
 
         due_date = data.get('due_date')
@@ -123,7 +121,7 @@ class DataCard(Entity):
 
         for comment in data.get('comments', ()):
             DataComment(comment=comment,
-                        creation_date=datetime.datetime.utcnow(),
+                        creation_date=datetime.utcnow(),
                         card=card,
                         author=user)
 
