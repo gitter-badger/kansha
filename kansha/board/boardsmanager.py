@@ -7,12 +7,12 @@
 # the file LICENSE.txt, which you should have received as part of
 # this distribution.
 #--
-from glob import glob
-import os.path
 import json
+import os.path
+from glob import glob
 
+from kansha.card.fts_schema import Card as FTSCard
 from .models import DataBoard
-from ..card.fts_schema import Card as FTSCard
 
 
 class BoardsManager(object):
