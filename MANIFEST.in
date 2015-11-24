@@ -3,6 +3,7 @@ graft static
 graft conf
 graft data/locale
 graft data/captcha
+graft data/templates
 include data/assets/EMPTY_DIR
 include data/logs/EMPTY_DIR
 include README.rst
